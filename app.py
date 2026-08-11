@@ -1,11 +1,14 @@
 import streamlit as st
 import pandas as pd
+import numpy as np
 import joblib
+import shap
+import matplotlib.pyplot as plt
 
 
-# ---------------------------------------------------------
-# PAGE CONFIG
-# ---------------------------------------------------------
+# ============================================================
+# PAGE CONFIGURATION
+# ============================================================
 
 st.set_page_config(
     page_title="Customer Churn Prediction",
@@ -14,23 +17,25 @@ st.set_page_config(
 )
 
 
-# ---------------------------------------------------------
+# ============================================================
 # LOAD MODEL AND PREPROCESSOR
-# ---------------------------------------------------------
+# ============================================================
 
 @st.cache_resource
 def load_model():
+
     model = joblib.load("final_random_forest.pkl")
     preprocessor = joblib.load("preprocessor.pkl")
+
     return model, preprocessor
 
 
 final_model, preprocessor = load_model()
 
 
-# ---------------------------------------------------------
+# ============================================================
 # TITLE
-# ---------------------------------------------------------
+# ============================================================
 
 st.title("Customer Churn Prediction")
 
@@ -40,12 +45,16 @@ st.write(
 )
 
 
-# ---------------------------------------------------------
+# ============================================================
 # CUSTOMER INFORMATION
-# ---------------------------------------------------------
+# ============================================================
 
-st.header("Customer Information")
+st.subheader("Customer Information")
 
+
+# -----------------------------
+# LEFT COLUMN
+# -----------------------------
 
 col1, col2 = st.columns(2)
 
@@ -128,6 +137,10 @@ with col1:
         ]
     )
 
+
+# -----------------------------
+# RIGHT COLUMN
+# -----------------------------
 
 with col2:
 
@@ -217,42 +230,9 @@ with col2:
     )
 
 
-# ---------------------------------------------------------
-# ENGINEERED FEATURES
-# ---------------------------------------------------------
-
-if tenure <= 12:
-    tenure_group = "New"
-elif tenure <= 24:
-    tenure_group = "Loyal"
-else:
-    tenure_group = "Long-term"
-
-
-high_charges = 1 if monthly_charges > 70 else 0
-
-
-# Count services
-service_values = [
-    phone_service,
-    multiple_lines,
-    online_security,
-    online_backup,
-    device_protection,
-    tech_support,
-    streaming_tv,
-    streaming_movies
-]
-
-total_services = sum(
-    1 for value in service_values
-    if value == "Yes"
-)
-
-
-# ---------------------------------------------------------
+# ============================================================
 # PREDICTION BUTTON
-# ---------------------------------------------------------
+# ============================================================
 
 st.divider()
 
@@ -263,131 +243,122 @@ predict_button = st.button(
 )
 
 
-# ---------------------------------------------------------
+# ============================================================
 # PREDICTION
-# ---------------------------------------------------------
+# ============================================================
 
 if predict_button:
 
-    # -----------------------------------------------------
-    # CREATE INPUT DATAFRAME
-    # -----------------------------------------------------
+    try:
 
-    input_data = pd.DataFrame({
-        "gender": [gender],
+        # ====================================================
+        # FEATURE ENGINEERING
+        # ====================================================
 
-        # SeniorCitizen is normally numeric in the dataset
-        "SeniorCitizen": [
-            1 if senior_citizen == "Yes" else 0
-        ],
-
-        "Partner": [partner],
-
-        "Dependents": [dependents],
-
-        "tenure": [tenure],
-
-        "PhoneService": [phone_service],
-
-        "MultipleLines": [multiple_lines],
-
-        "InternetService": [internet_service],
-
-        "OnlineSecurity": [online_security],
-
-        "OnlineBackup": [online_backup],
-
-        "DeviceProtection": [device_protection],
-
-        "TechSupport": [tech_support],
-
-        "StreamingTV": [streaming_tv],
-
-        "StreamingMovies": [streaming_movies],
-
-        "Contract": [contract],
-
-        "PaperlessBilling": [paperless_billing],
-
-        "PaymentMethod": [payment_method],
-
-        "MonthlyCharges": [monthly_charges],
-
-        "TotalCharges": [total_charges],
-
-        "tenure_group": [tenure_group],
-
-        "high_charges": [high_charges],
-
-        "total_services": [total_services]
-    })
+        # Tenure group
+        if tenure <= 12:
+            tenure_group = "0-12"
+        elif tenure <= 24:
+            tenure_group = "13-24"
+        elif tenure <= 48:
+            tenure_group = "25-48"
+        elif tenure <= 60:
+            tenure_group = "49-60"
+        else:
+            tenure_group = "61+"
 
 
-    # -----------------------------------------------------
-    # MAKE SURE COLUMNS ARE IN THE SAME ORDER
-    # -----------------------------------------------------
-
-    expected_columns = [
-        "gender",
-        "SeniorCitizen",
-        "Partner",
-        "Dependents",
-        "tenure",
-        "PhoneService",
-        "MultipleLines",
-        "InternetService",
-        "OnlineSecurity",
-        "OnlineBackup",
-        "DeviceProtection",
-        "TechSupport",
-        "StreamingTV",
-        "StreamingMovies",
-        "Contract",
-        "PaperlessBilling",
-        "PaymentMethod",
-        "MonthlyCharges",
-        "TotalCharges",
-        "tenure_group",
-        "high_charges",
-        "total_services"
-    ]
-
-    input_data = input_data[expected_columns]
+        # High charges
+        if monthly_charges > 70:
+            high_charges = 1
+        else:
+            high_charges = 0
 
 
-    # -----------------------------------------------------
-    # FIX NUMERIC COLUMNS ACCORDING TO PREPROCESSOR
-    # -----------------------------------------------------
+        # Count subscribed services
+        service_values = [
+            phone_service,
+            online_security,
+            online_backup,
+            device_protection,
+            tech_support,
+            streaming_tv,
+            streaming_movies
+        ]
 
-    # Find columns used by numeric transformers
-    numeric_columns = []
-
-    for transformer_name, transformer, columns in preprocessor.transformers_:
-
-        if transformer_name == "num":
-
-            if isinstance(columns, (list, tuple)):
-                numeric_columns.extend(columns)
-
-            else:
-                try:
-                    numeric_columns.extend(list(columns))
-                except TypeError:
-                    pass
+        total_services = sum(
+            1 for value in service_values
+            if value == "Yes"
+        )
 
 
-    # Convert numeric columns safely
-    for column in numeric_columns:
+        # ====================================================
+        # CREATE INPUT DATAFRAME
+        # ====================================================
+        senior_citizen_value = 1 if senior_citizen == "Yes" else 0
 
-        if column in input_data.columns:
+        input_data = pd.DataFrame({
 
-            # Handle Yes/No if any numeric column receives them
-            if input_data[column].dtype == "object":
+            "gender": [gender],
 
-                input_data[column] = input_data[column].replace({
-                    "Yes": 1,
-                    "No": 0
-                })
+            "SeniorCitizen": [senior_citizen_value],
+
+            "Partner": [partner],
+
+            "Dependents": [dependents],
+
+            "tenure": [tenure],
+
+            "PhoneService": [phone_service],
+
+            "MultipleLines": [multiple_lines],
+
+            "InternetService": [internet_service],
+
+            "OnlineSecurity": [online_security],
+
+            "OnlineBackup": [online_backup],
+
+            "DeviceProtection": [device_protection],
+
+            "TechSupport": [tech_support],
+
+            "StreamingTV": [streaming_tv],
+
+            "StreamingMovies": [streaming_movies],
+
+            "Contract": [contract],
+
+            "PaperlessBilling": [paperless_billing],
+
+            "PaymentMethod": [payment_method],
+
+            "MonthlyCharges": [monthly_charges],
+
+            "TotalCharges": [total_charges],
+
+            "tenure_group": [tenure_group],
+
+            "high_charges": [high_charges],
+
+            "total_services": [total_services]
+
+        })
+
+
+        # ====================================================
+        # ENSURE CORRECT NUMERIC TYPES
+        # ====================================================
+
+        numeric_columns = [
+            "tenure",
+            "MonthlyCharges",
+            "TotalCharges",
+            "high_charges",
+            "total_services"
+        ]
+
+        for column in numeric_columns:
 
             input_data[column] = pd.to_numeric(
                 input_data[column],
@@ -395,32 +366,325 @@ if predict_button:
             )
 
 
-    # -----------------------------------------------------
-    # PREPROCESS
-    # -----------------------------------------------------
+        # ====================================================
+        # CHECK FOR MISSING VALUES
+        # ====================================================
 
-    try:
+        if input_data.isnull().any().any():
+
+            st.error(
+                "Some numeric values could not be converted. "
+                "Please check the input values."
+            )
+
+            st.stop()
+
+
+        # ====================================================
+        # PREPROCESS INPUT
+        # ====================================================
 
         input_encoded = preprocessor.transform(input_data)
 
-    except Exception as e:
 
-        st.error(
-            "There was an error while preprocessing the input data."
+        # ====================================================
+        # FORCE NUMERIC OUTPUT
+        # ====================================================
+
+        input_encoded = np.asarray(
+            input_encoded,
+            dtype=np.float64
         )
 
-        st.exception(e)
 
-        st.stop()
+        # ====================================================
+        # SHOW ENCODED DATA
+        # ====================================================
+
+        with st.expander("View Processed Input"):
+
+            st.write(
+                "Encoded shape:",
+                input_encoded.shape
+            )
+
+            st.dataframe(
+                pd.DataFrame(input_encoded)
+            )
 
 
-    # -----------------------------------------------------
-    # PREDICTION
-    # -----------------------------------------------------
-
-    try:
+        # ====================================================
+        # MAKE PREDICTION
+        # ====================================================
 
         prediction = final_model.predict(input_encoded)[0]
+
+
+        # ====================================================
+        # PREDICTION PROBABILITY
+        # ====================================================
+
+        churn_probability = None
+
+        if hasattr(final_model, "predict_proba"):
+
+            probabilities = final_model.predict_proba(
+                input_encoded
+            )[0]
+
+            # Probability of class 1
+            if len(probabilities) > 1:
+                churn_probability = probabilities[1]
+
+
+        # ====================================================
+        # RESULT
+        # ====================================================
+
+        st.divider()
+
+        st.subheader("Prediction Result")
+
+
+        if prediction == 1:
+
+            st.error(
+                "⚠️ Customer is likely to churn."
+            )
+
+        else:
+
+            st.success(
+                "✅ Customer is unlikely to churn."
+            )
+
+
+        # ====================================================
+        # PROBABILITY
+        # ====================================================
+
+        if churn_probability is not None:
+
+            st.write(
+                f"**Churn Probability: "
+                f"{churn_probability * 100:.2f}%**"
+            )
+
+            st.progress(
+                float(churn_probability)
+            )
+
+
+        # ====================================================
+        # SHAP EXPLANATION
+        # ====================================================
+
+        st.divider()
+
+        st.subheader("SHAP Explanation")
+
+        try:
+
+            # Create SHAP explainer
+            explainer = shap.TreeExplainer(
+                final_model
+            )
+
+            shap_values = explainer.shap_values(
+                input_encoded
+            )
+
+
+            # Get feature names
+            try:
+
+                feature_names = (
+                    preprocessor
+                    .get_feature_names_out()
+                )
+
+            except Exception:
+
+                feature_names = [
+                    f"Feature {i}"
+                    for i in range(
+                        input_encoded.shape[1]
+                    )
+                ]
+
+
+            # =================================================
+            # HANDLE DIFFERENT SHAP OUTPUT FORMATS
+            # =================================================
+
+            if isinstance(shap_values, list):
+
+                # Binary classification:
+                # class 1 = churn
+                if len(shap_values) > 1:
+
+                    values = shap_values[1][0]
+
+                else:
+
+                    values = shap_values[0][0]
+
+            else:
+
+                shap_array = np.asarray(
+                    shap_values
+                )
+
+                if shap_array.ndim == 3:
+
+                    # Shape:
+                    # (samples, features, classes)
+
+                    if shap_array.shape[2] > 1:
+
+                        values = shap_array[
+                            0, :, 1
+                        ]
+
+                    else:
+
+                        values = shap_array[
+                            0, :, 0
+                        ]
+
+                elif shap_array.ndim == 2:
+
+                    values = shap_array[0]
+
+                else:
+
+                    values = shap_array
+
+
+            # =================================================
+            # CREATE SHAP DATAFRAME
+            # =================================================
+
+            shap_df = pd.DataFrame({
+
+                "Feature": feature_names,
+
+                "SHAP Value": values
+
+            })
+
+
+            # Make sure lengths match
+            min_length = min(
+                len(shap_df),
+                len(values)
+            )
+
+            shap_df = shap_df.iloc[
+                :min_length
+            ]
+
+
+            # Absolute importance
+            shap_df["Importance"] = (
+                shap_df["SHAP Value"]
+                .abs()
+            )
+
+
+            # Top 10 features
+            shap_df = shap_df.sort_values(
+                "Importance",
+                ascending=False
+            ).head(10)
+
+
+            # =================================================
+            # DISPLAY SHAP TABLE
+            # =================================================
+
+            st.write(
+                "Top factors influencing this prediction:"
+            )
+
+            st.dataframe(
+                shap_df[
+                    [
+                        "Feature",
+                        "SHAP Value"
+                    ]
+                ],
+                use_container_width=True
+            )
+
+
+            # =================================================
+            # SHAP BAR CHART
+            # =================================================
+
+            chart_df = shap_df.sort_values(
+                "SHAP Value"
+            )
+
+
+            fig, ax = plt.subplots(
+                figsize=(10, 6)
+            )
+
+            ax.barh(
+                chart_df["Feature"],
+                chart_df["SHAP Value"]
+            )
+
+            ax.axvline(
+                0,
+                linewidth=1
+            )
+
+            ax.set_xlabel(
+                "SHAP Value"
+            )
+
+            ax.set_ylabel(
+                "Feature"
+            )
+
+            ax.set_title(
+                "Top Features Influencing Churn Prediction"
+            )
+
+            plt.tight_layout()
+
+            st.pyplot(fig)
+
+            plt.close(fig)
+
+
+            st.caption(
+                "Positive SHAP values push the prediction "
+                "towards churn, while negative values push "
+                "the prediction towards non-churn."
+            )
+
+
+        except Exception as shap_error:
+
+            # SHAP failure should NOT break prediction
+
+            st.warning(
+                "SHAP explanation could not be generated."
+            )
+
+            with st.expander(
+                "SHAP Technical Details"
+            ):
+
+                st.write(shap_error)
+
+
+    # ========================================================
+    # GENERAL ERROR HANDLING
+    # ========================================================
 
     except Exception as e:
 
@@ -429,29 +693,3 @@ if predict_button:
         )
 
         st.exception(e)
-
-        st.stop()
-
-
-    # -----------------------------------------------------
-    # RESULT
-    # -----------------------------------------------------
-
-    st.divider()
-
-    st.subheader("Prediction Result")
-
-
-    if prediction == 1:
-
-        st.error(
-            "Customer is likely to churn."
-        )
-
-    else:
-
-        st.success(
-            "Customer is unlikely to churn."
-        )
-
-
