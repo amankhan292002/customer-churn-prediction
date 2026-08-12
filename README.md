@@ -6,6 +6,15 @@ The project includes an interactive **Streamlit application** with **SHAP-based 
 
 ---
 
+## Live Demo
+
+ Try the deployed Streamlit application:
+
+ [https://customer-churn-prediction-292002.streamlit.app](https://customer-churn-prediction-292002.streamlit.app/)
+
+---
+
+
 ## Objective
 
 To build a binary classification model that predicts customer churn:
