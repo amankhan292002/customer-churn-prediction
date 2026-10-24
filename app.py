@@ -598,7 +598,7 @@ if predict_button:
                 ascending=False
             ).head(10)
 
-
+            
             # =================================================
             # DISPLAY SHAP TABLE
             # =================================================
@@ -642,7 +642,7 @@ if predict_button:
                 linewidth=1
             )
 
-             ax.set_xlabel("SHAP Value", fontsize=10)
+            ax.set_xlabel("SHAP Value", fontsize=10)
     ax.set_ylabel("Feature", fontsize=10)
     
     ax.set_title(
