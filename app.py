@@ -627,9 +627,10 @@ if predict_button:
             )
 
 
-            fig, ax = plt.subplots(
-                figsize=(10, 6)
-            )
+              fig, ax = plt.subplots(
+        figsize=(8, 4),
+        constrained_layout=True
+    )
 
             ax.barh(
                 chart_df["Feature"],
@@ -641,19 +642,16 @@ if predict_button:
                 linewidth=1
             )
 
-            ax.set_xlabel(
-                "SHAP Value"
-            )
-
-            ax.set_ylabel(
-                "Feature"
-            )
-
-            ax.set_title(
-                "Top Features Influencing Churn Prediction"
-            )
-
-            plt.tight_layout()
+             ax.set_xlabel("SHAP Value", fontsize=10)
+    ax.set_ylabel("Feature", fontsize=10)
+    
+    ax.set_title(
+        "Top Features Influencing Churn Prediction",
+        fontsize=12
+    )
+    
+    ax.tick_params(axis="both", labelsize=8)
+    
 
             st.pyplot(fig)
 
