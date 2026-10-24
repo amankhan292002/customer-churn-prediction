@@ -21,10 +21,7 @@ def load_dataset():
     return pd.read_csv("WA_Fn-UseC_-Telco-Customer-Churn.csv")
 
 df = load_dataset()
-st.write("Dataset columns:", df.columns.tolist())
-st.write("Dataset shape:", df.shape)
-st.write("Churn column exists:", "Churn" in df.columns)
-st.write("Customer ID exists:", "customerID" in df.columns)
+
 
 # ============================================================
 # LOAD MODEL AND PREPROCESSOR
