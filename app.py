@@ -627,7 +627,7 @@ if predict_button:
             )
 
 
-              fig, ax = plt.subplots(
+            fig, ax = plt.subplots(
         figsize=(8, 4),
         constrained_layout=True
     )
