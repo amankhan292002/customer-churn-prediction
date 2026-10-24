@@ -16,6 +16,11 @@ st.set_page_config(
     layout="wide"
 )
 
+@st.cache_data
+def load_dataset():
+    return pd.read_csv("WA_Fn-UseC_-Telco-Customer-Churn.csv")
+
+df = load_dataset()
 
 # ============================================================
 # LOAD MODEL AND PREPROCESSOR
