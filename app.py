@@ -643,14 +643,14 @@ if predict_button:
             )
 
             ax.set_xlabel("SHAP Value", fontsize=10)
-    ax.set_ylabel("Feature", fontsize=10)
+        ax.set_ylabel("Feature", fontsize=10)
     
-    ax.set_title(
+            ax.set_title(
         "Top Features Influencing Churn Prediction",
         fontsize=12
     )
     
-    ax.tick_params(axis="both", labelsize=8)
+            ax.tick_params(axis="both", labelsize=8)
     
 
             st.pyplot(fig)
